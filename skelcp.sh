@@ -7,16 +7,26 @@ echo "1. Any row contains more than one of the same number from 1 to 9"
 echo "2. Any column contains more than one of the same number from 1 to 9"
 echo "3. Any 3x3 grid contains more than one of the same number from 1 to 9"
 echo "Do you want to start the game?(y/n)"
-nums=($(python3 qgen.py | tr -d '[],'))
 read reply
-function numberofelements(){
-	p=0
-	arr=("$@")
-	for i in "${arr[@]}";
-		do
-            p=$(( $p+1 ))
-	done
-    echo "$p"
+RED="\e[31m"
+GREEN='\033[00;32m'
+YELLOW='\033[00;33m'
+BLUE='\033[00;34m'
+PURPLE='\033[00;35m'
+CYAN='\033[00;36m'
+LIGHTGRAY='\033[00;37m'
+clear='\033[0m'
+BOLDGREEN="\e[1;${GREEN}"
+function numberExists() {
+    local target=$1
+    local array=("${@:2}")
+    for num in "${array[@]}"; do
+        if [ $num -eq $target ]; then
+            return 0  # Number exists in the array
+        fi
+    done
+
+    return 1  # Number does not exist in the array
 }
 
 function finish(){
@@ -36,56 +46,92 @@ function finish(){
 }
 
 function isRow() {
-    row=$1
-    echo "ans$2"
-    array=("${@:3}")
+    local row=$1
+    local array=("${@:3}")
        for (( i = $(( $row* 9 - 8 )); i<=$(( $row* 9 )); i++)) do
-	        if [[ ${array[$i]} == $2 || ${array[$i]} != '0' ]] ; then
-                echo "Wrong$i"
-            else
-                echo "correct$i"
+	        if [[ ${array[$(( $i-1 ))]} == $2 ]] ; then
+                return 1
             fi
 done
+    return 0
 }
-
-function isRepeated() {
-    arr=("${@:2}")
-    rep="notrepeated"
-    for i in "${nums[@]}"; 
-        do
-            if [[ $i == $1 ]] ; then
-                rep="repeated"
+function isColumn() {
+    local cols=$1
+    local colar=("${@:3}")
+    local ascii=$(printf '%d' "'$cols")
+    local column=$(( $ascii-96 ))
+    for (( j = $column; j<=81; j=$(($j+9)))) do
+	        if [[ ${colar[$(( $j-1 ))]} == $2 ]] ; then
+                return 1
             fi
     done
-    if [[ $rep == "repeated" ]] ; then
-        echo "Incorrect!"
+    return 0
+}
+function isBox() {
+    local cols=$1
+    local colar=("${@:4}")
+    local ascii=$(printf '%d' "'$cols")
+    local col=$(( $ascii-96 ))
+    local row=$2
+    local arr=("${@:4}")
+    if numberExists "$row" 1 2 3 ; then
+        startRow=1
+    elif numberExists "$row" 4 5 6 ; then
+        startRow=4
+    elif numberExists "$row" 7 8 9 ; then
+        startRow=7
     fi
+    if numberExists "$col" 1 2 3 ; then
+        startCol=1
+    elif numberExists "$col" 4 5 6 ; then
+        startCol=4
+    elif numberExists "$col" 7 8 9 ; then
+        startCol=7
+    fi
+    for (( k = $startRow; k< $(($startRow+3)); k++)) do
+	    for ((l = $startCol; l < $(($startCol + 3)); l++)); do
+            local in=$((9*$k+$l-10))
+            echo "$in ${arr[$in]}"
+            if [[ ${arr[$in]} == $3 ]] ; then
+                return 1
+            fi
+    done
+    done
 }
 
-if [[ $reply == "y" ]];then
-while ! finish "${nums[@]}"
-echo "hi"
-do
-echo "    a   b   c   d   e   f   g   h   i"
-echo "  +---+---+---+---+---+---+---+---+---+"
 
+if [[ $reply == "y" ]];then
+nums=($(python3 qgen.py | tr -d '[],'))
+hu=0
+while (finish "${nums[@]}") ; do
+echo -e "${CYAN}    a   b   c   d   e   f   g   h   i"
+echo -e "${YELLOW}  +---+---+---+---+---+---+---+---+---+"
 i=0
 for row in {1..9}; do
-	echo -n "$row "
+	echo -ne "${CYAN}$row "
        for column in {a..i} ; do
 
 	        if [[ ${nums[$i]} == '0' ]] ; then
-		       echo -n "|   "
+		       echo -ne "${YELLOW}|   "
 
 		else
-		       echo -n "| ${nums[$i]} "
+		       echo -ne "${YELLOW}| ${clear}${nums[$i]} "
 fi
 i=$(( $i+1 ))
 done
-echo -e "|\n  +---+---+---+---+---+---+---+---+---+"
-done
+echo -e "${YELLOW}|\n  +---+---+---+---+---+---+---+---+---+"
+done 
 read col row ans
-isRow "$row" "$ans" "${nums[@]}"
+if isBox "$col" "$row" "$ans" "${nums[@]}" && isRow "$row" "$ans" "${nums[@]}" && isColumn "$col" "$ans" "${nums[@]}" ; then
+    ascii_val=$(printf '%d' "'$col")
+    integer_val=$(( $ascii_val-96 ))
+    hor=$(($row*9-9))
+    index=$(($hor+$integer_val-1))
+    nums[$index]=${BOLDGREEN}$ans
+    echo "${nums[$index]}"
+else
+    echo -e "${RED}Incorrect move!"
+fi
 done
 else 
 	echo "Bye!"
